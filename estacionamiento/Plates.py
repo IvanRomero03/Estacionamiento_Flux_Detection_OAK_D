@@ -17,6 +17,7 @@ mono_left_node = pipeline.createMonoCamera()
 mono_right_node = pipeline.createMonoCamera()
 stereo_node = pipeline.createStereoDepth()
 car_tracker_node = pipeline.createObjectTracker()
+ocr_node = pipeline.createNeuralNetwork()
 
 # Set nodes output stream
 xout_rgb = pipeline.createXLinkOut()
@@ -69,6 +70,10 @@ car_tracker_node.setTrackerType(dai.TrackerType.ZERO_TERM_COLOR_HISTOGRAM)
 # car_tracker_node.setTrackerIdAssignmentPolicy(
 #     dai.TrackerIdAssigmentPolicy.SMALLEST_ID)
 
+# OCR node
+ocr_node.setBlobPath(
+    blobconverter.from_zoo("east_text_detection_256x256", shaves=6))
+
 # Link nodes
 mono_left_node.out.link(stereo_node.left)
 mono_right_node.out.link(stereo_node.right)
@@ -86,6 +91,11 @@ car_tracker_node.inputTrackerFrame.setQueueSize(2)
 spatial_yolo_node.passthrough.link(car_tracker_node.inputDetectionFrame)
 spatial_yolo_node.out.link(car_tracker_node.inputDetections)
 stereo_node.depth.link(spatial_yolo_node.inputDepth)
+
+rgb_node.preview.link(ocr_node.input)
+xout_ocr = pipeline.createXLinkOut()
+xout_ocr.setStreamName("ocr")
+ocr_node.out.link(xout_ocr.input)
 
 
 # Logic
@@ -109,6 +119,7 @@ with dai.Device(pipeline) as device:
     rgb_queue = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
     car_tracker_queue = device.getOutputQueue(
         name="car_tracker", maxSize=4, blocking=False)
+    ocr_queue = device.getOutputQueue(name="ocr", maxSize=4, blocking=False)
 
     while True:
         rgb_image = rgb_queue.get()

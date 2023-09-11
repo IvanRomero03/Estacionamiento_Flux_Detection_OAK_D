@@ -3,8 +3,15 @@ import depthai as dai
 import numpy as np
 import os
 import blobconverter
+import redis
 
-global_counter = 0
+r = redis.Redis(
+    host='redis-19108.c44.us-east-1-2.ec2.cloud.redislabs.com',
+    port=19108,
+    password='OlMM6tSi23DkECgAAa0Ou27XyXTRWkBg')
+global_counter = int(r.get("counter"))
+print(global_counter)
+# KV_URL="redis://default:7cf2ffcc9d294cfeb882703a9c287101@master-dinosaur-34745.kv.vercel-storage.com:34745
 
 
 # Define the pipeline for nodes
@@ -28,7 +35,7 @@ xout_car_tracker.setStreamName("car_tracker")
 # Define nodes properties
 # Cam
 rgb_node.setPreviewSize(416, 416)
-rgb_node.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
+rgb_node.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
 rgb_node.setInterleaved(False)
 rgb_node.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
 
@@ -49,7 +56,7 @@ stereo_node.setOutputSize(rgb_node.getPreviewWidth(),
 # Spatial detection
 spatial_yolo_node.setBlobPath(
     blobconverter.from_zoo("yolo-v3-tiny-tf", shaves=6))
-spatial_yolo_node.setConfidenceThreshold(0.85)
+spatial_yolo_node.setConfidenceThreshold(0.5)
 spatial_yolo_node.input.setBlocking(False)
 spatial_yolo_node.setBoundingBoxScaleFactor(0.5)
 spatial_yolo_node.setDepthLowerThreshold(100)
@@ -128,18 +135,17 @@ with dai.Device(pipeline) as device:
             z = car.spatialCoordinates.z
             if (car.status.name != "LOST"):
                 if (car.id not in tracker_depth_origin):
-                    print("New car detected at: " + str(z) +
-                          "mm" + " with id: " + str(car.id))
                     tracker_depth_origin[car.id] = z
                     tracker_id_frames_count[car.id] = 0
                 else:
                     if (car.status.name != "LOST"):
                         tracker_id_frames_count[car.id] += 1
                         if (tracker_id_frames_count[car.id] >= FRAMES_THRESHOLD) and (z - tracker_depth_origin[car.id] >= DEPTH_FRONTIER) and (car.id not in registered_cars):
-
                             registered_cars.append(car.id)
                             global_counter += 1
-                            # r.set("counter", global_counter)
+                            r.set("counter", global_counter)
+                            print(global_counter)
+                            print("Car registered: ", car.id)
 
                 # Normal Bbox
                 cv2.putText(frame, "car", (x1 + 10, 71 + 20),
@@ -165,10 +171,10 @@ with dai.Device(pipeline) as device:
         cv2.putText(frame, "Counter: " + str(global_counter), (10, 50),
                     cv2.FONT_HERSHEY_TRIPLEX, 2, 255, thickness=2)
 
-        # cv2.imshow("Demo", frame)
-        cv2.namedWindow("demo", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("demo", 1280, 720)
-        cv2.imshow("demo", frame)
+        cv2.imshow("Demo", frame)
+        cv2.namedWindow("rezisible", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("rezisible", 1280, 720)
+        cv2.imshow("rezisible", frame)
 
         if cv2.waitKey(1) == ord('q'):
             break
