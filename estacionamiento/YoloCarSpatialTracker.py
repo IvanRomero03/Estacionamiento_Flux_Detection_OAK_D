@@ -6,7 +6,9 @@ import blobconverter
 
 global_counter = 0
 
-
+MODEL_PATH = "../models/yolov8n_openvino_2022.1_6shave.blob"
+# MODEL_PATH = "../models/yolov8m_openvino_2022.1_6shave.blob"
+# MODEL_PATH = blobconverter.from_zoo("yolo-v3-tiny-tf", shaves=6)
 # Define the pipeline for nodes
 pipeline = dai.Pipeline()
 
@@ -47,8 +49,7 @@ stereo_node.setOutputSize(rgb_node.getPreviewWidth(),
                           rgb_node.getPreviewHeight())
 
 # Spatial detection
-spatial_yolo_node.setBlobPath(
-    blobconverter.from_zoo("yolo-v3-tiny-tf", shaves=6))
+spatial_yolo_node.setBlobPath(MODEL_PATH)
 spatial_yolo_node.setConfidenceThreshold(0.85)
 spatial_yolo_node.input.setBlocking(False)
 spatial_yolo_node.setBoundingBoxScaleFactor(0.5)
